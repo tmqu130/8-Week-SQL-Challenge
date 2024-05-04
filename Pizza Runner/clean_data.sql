@@ -17,9 +17,14 @@ select * from pizza_runner.runner_orders;
     where cancellation in ('', 'NaN') or cancellation is null;
 
     with X as
-        (select order_id,
-        (SELECT value FROM STRING_SPLIT(cancellation, ' ') WHERE value <> '' ORDER BY (SELECT NULL) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY) AS first_value
-        FROM pizza_runner.runner_orders)
+        (select 
+            order_id,
+                (select value 
+                from STRING_SPLIT(cancellation, ' ') 
+                where value <> '' 
+                order by (select null) offset 0 rows fetch next 1 rows only) 
+            as first_value
+        from pizza_runner.runner_orders)
     update pizza_runner.runner_orders
     set cancellation = first_value
     from X
