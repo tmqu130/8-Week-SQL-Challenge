@@ -19,8 +19,8 @@ select * from pizza_runner.runner_orders;
     with X as
         (select 
             order_id,
-                (select value 
-                from STRING_SPLIT(cancellation, ' ') 
+            (select value 
+                from string_split(cancellation, ' ') 
                 where value <> '' 
                 order by (select null) offset 0 rows fetch next 1 rows only) 
             as first_value
@@ -33,19 +33,19 @@ select * from pizza_runner.runner_orders;
 
     update pizza_runner.runner_orders
     set duration = case 
-        when duration is null then ''
-        when duration like '%minutes' then trim ('minutes' from duration)
-        when duration like '%mins%' then trim ('mins' from duration)
-        when duration like '%minute%' then trim ('minute' from duration)
-        else duration
-    end;
+            when duration is null then ''
+            when duration like '%minutes' then trim ('minutes' from duration)
+            when duration like '%mins%' then trim ('mins' from duration)
+            when duration like '%minute%' then trim ('minute' from duration)
+            else duration
+        end;
 
     update pizza_runner.runner_orders
     set distance = case 
-        when distance is null then ''
-        when distance like '%km' then trim ('km' from distance)
-        else distance
-    end;
+            when distance is null then ''
+            when distance like '%km' then trim ('km' from distance)
+            else distance
+        end;
 
     update pizza_runner.runner_orders
     set pickup_time = ''
