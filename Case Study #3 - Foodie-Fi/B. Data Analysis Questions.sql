@@ -36,66 +36,83 @@ order by
 
 --4. What is the customer count and percentage of customers who have churned rounded to 1 decimal place?
 
-with CTE1 as 
-    (select count(distinct customer_id) as customer_count
-    from foodie_fi.subscriptions),
-CTE2 as 
-    (select count(distinct customer_id) as churn_customer_count
-    from 
-        foodie_fi.subscriptions as S
-        join foodie_fi.plans as P 
-            on S.plan_id = P.plan_id
-    where plan_name = 'churn')
+with CTE as 
+    (select 
+        (
+            select count(distinct customer_id) 
+            from foodie_fi.subscriptions
+        ) as customer_count,
+        (
+            select count(distinct customer_id)
+            from foodie_fi.subscriptions as S
+            join foodie_fi.plans as P 
+                on S.plan_id = P.plan_id
+            where plan_name = 'churn'
+        ) as churn_customer_count)
 select 
     churn_customer_count,
     round(cast(churn_customer_count as float)/cast(customer_count as float)*100, 1) as churn_percentage
-from CTE1, CTE2;
+from CTE;
 
 --5. How many customers have churned straight after their initial free trial - what percentage is this rounded to the nearest whole number?
 
-with CTE1 as 
-    (select count(distinct customer_id) as customer_count
-    from foodie_fi.subscriptions),
-CTE2 as 
-    (select count(distinct customer_id) as churn_straight_customer_count
-    from foodie_fi.subscriptions
-    where customer_id not in (
-        select customer_id
-        from foodie_fi.subscriptions as S 
-        join foodie_fi.plans as P 
-            on S.plan_id = P.plan_id
-        where plan_name in ('basic monthly', 'pro monthly', 'pro annual')
-    ))
+with CTE as 
+    (select 
+        (
+            select count(distinct customer_id)
+            from foodie_fi.subscriptions
+        ) as customer_count,
+        (
+            select count(distinct customer_id)
+            from foodie_fi.subscriptions
+            where customer_id not in (
+                                    select customer_id
+                                    from foodie_fi.subscriptions as S 
+                                    join foodie_fi.plans as P 
+                                        on S.plan_id = P.plan_id
+                                    where plan_name in ('basic monthly', 'pro monthly', 'pro annual')
+                                    )
+        ) as churn_straight_customer_count
+    ) 
 select 
     churn_straight_customer_count,
     round(cast(churn_straight_customer_count as float)/cast(customer_count as float)*100, 0) as churn_percentage
-from CTE1, CTE2;
+from CTE;
 
 --6. What is the number and percentage of customer plans after their initial free trial?
 
-with CTE1 as 
-    (select S.*, plan_name, row_number() over(partition by customer_id 
-                                order by start_date) as plan_order
-    from foodie_fi.subscriptions as S
-    join foodie_fi.plans as P 
-        on S.plan_id = P.plan_id),
-CTE2 as 
-    (select plan_name, count(distinct customer_id) as conversion_count
-    from CTE1
-    where customer_id not in (
-            select customer_id
-            from CTE1
-            where (plan_order = 1 and plan_name <> 'trial'))
+with CTE as 
+    (select 
+        plan_name, 
+        count(distinct customer_id) as conversion_count
+    from 
+        (select 
+            S.*, plan_name, 
+            row_number() over(partition by customer_id order by start_date) as plan_order
+        from foodie_fi.subscriptions as S
+        join foodie_fi.plans as P 
+            on S.plan_id = P.plan_id)
+    as subquery
+    where 
+        customer_id not in (
+                            select customer_id
+                            from foodie_fi.subscriptions
+                            where (plan_order = 1 and plan_name <> 'trial')
+                            )
         and plan_order = 2
-    group by plan_name),
-CTE3 as 
-    (select sum(conversion_count) as total_conversion_customer
-    from CTE2)
+    group by plan_name)
 select 
     plan_name,
     conversion_count,
-    round((cast(conversion_count as float)/cast(total_conversion_customer as float) * 100), 1) as conversion_percent
-from CTE2, CTE3
+    round(
+            (cast(conversion_count as float)
+            /
+            (
+                select cast(sum(conversion_count) as float)
+                from CTE)
+        * 100), 1
+        ) as conversion_percent
+from CTE
 order by 
     case 
         when plan_name = 'basic monthly' then 1
@@ -106,31 +123,38 @@ order by
 
 --7. What is the customer count and percentage breakdown of all 5 plan_name values at 2020-12-31?
 
-with CTE1 as 
-    (select customer_id, max(start_date) as last_day_2020
-    from foodie_fi.subscriptions
-    where start_date <= '2020-12-31'
-    group by customer_id),
-CTE2 as
-    (select S.customer_id, plan_name, start_date, row_number() over(partition by S.customer_id order by start_date desc) as plan_order
+with CTE as
+    (select     
+        S.customer_id, 
+        plan_name, 
+        start_date, 
+        row_number() over(partition by S.customer_id order by start_date desc) as plan_order
     from foodie_fi.subscriptions as S 
-    join CTE1
-        on S.customer_id = CTE1.customer_id and S.start_date = last_day_2020
+    join 
+        (select 
+            customer_id, 
+            max(start_date) as last_day_2020
+        from foodie_fi.subscriptions
+        where start_date <= '2020-12-31'
+        group by customer_id)
+    as subquery
+        on S.customer_id = subquery.customer_id and S.start_date = last_day_2020
     join foodie_fi.plans as P 
-        on S.plan_id = P.plan_id),
-CTE3 as 
-    (select count(customer_id) as total_customer
-    from CTE2
-    where plan_order = 1),
-CTE4 as 
-    (select plan_name, count(customer_id) as customer_count
-    from CTE2 
-    where plan_order = 1
-    group by plan_name)
+        on S.plan_id = P.plan_id)
 select 
     plan_name, 
-    round((cast(customer_count as float)/cast(total_customer as float) * 100), 1) as plan_percentage
-from CTE3, CTE4
+    round(
+            (cast(count(customer_id) as float))
+            /
+            (
+                select cast(count(customer_id) as float) 
+                from CTE
+                where plan_order = 1
+            )
+        * 100, 1
+        ) as plan_percentage
+from CTE
+group by plan_name
 order by 
     case 
         when plan_name = 'trial' then 1
@@ -142,13 +166,18 @@ order by
 
 --8. How many customers have upgraded to an annual plan in 2020?
 
-with CTE as 
-    (select *, row_number () over (partition by customer_id order by start_date) as plan_order
-    from foodie_fi.subscriptions)
 select count(customer_id) as annual_plan_2020_count
-from CTE
-join foodie_fi.plans as P 
-    on CTE.plan_id = P.plan_id
+from 
+    (
+        select 
+            customer_id, 
+            plan_name,
+            start_date, 
+            row_number () over (partition by customer_id order by start_date) as plan_order
+        from foodie_fi.subscriptions as S
+        join foodie_fi.plans as P 
+            on S.plan_id = P.plan_id
+    ) as subquery
 where 
     plan_name = 'pro annual' 
     and plan_order <> 1 
@@ -156,14 +185,16 @@ where
 
 --9. How many days on average does it take for a customer to an annual plan from the day they join Foodie-Fi?
 
-with CTE as 
-    (select customer_id, min(start_date) as soonest_day
-    from foodie_fi.subscriptions
-    group by customer_id)
 select avg(datediff(day, S1.start_date, S2.start_date)) as avg_days_to_annual_upgrade
 from foodie_fi.subscriptions as S1
-join CTE 
-    on S1.customer_id = CTE.customer_id
+join 
+    (select 
+        customer_id, 
+        min(start_date) as soonest_day
+    from foodie_fi.subscriptions
+    group by customer_id)
+as subquery 
+    on S1.customer_id = subquery.customer_id
         and S1.start_date = soonest_day
 join foodie_fi.subscriptions as S2 
     on S1.customer_id = S2.customer_id
@@ -174,14 +205,16 @@ where plan_name = 'pro annual';
 
 --10. Can you further breakdown this average value into 30 day periods (i.e. 0-30 days, 31-60 days etc)
 
-with CTE as 
-    (select customer_id, min(start_date) as soonest_day
-    from foodie_fi.subscriptions
-    group by customer_id)
 select max(datediff(day, S1.start_date, S2.start_date)) as max_days_to_annual_upgrade
 from foodie_fi.subscriptions as S1
-join CTE 
-    on S1.customer_id = CTE.customer_id
+join 
+    (select 
+        customer_id, 
+        min(start_date) as soonest_day
+    from foodie_fi.subscriptions
+    group by customer_id)
+as subquery 
+    on S1.customer_id = subquery.customer_id
         and S1.start_date = soonest_day
 join foodie_fi.subscriptions as S2 
     on S1.customer_id = S2.customer_id
@@ -190,24 +223,30 @@ join foodie_fi.plans as P
     on S2.plan_id = P.plan_id
 where plan_name = 'pro annual';
 
-with CTE1 as 
-    (select customer_id, min(start_date) as soonest_day
-    from foodie_fi.subscriptions
-    group by customer_id),
-CTE2 as
+with CTE as
     (select datediff(day, S1.start_date, S2.start_date) as days_to_annual_upgrade
     from foodie_fi.subscriptions as S1
-    join CTE1 
-        on S1.customer_id = CTE1.customer_id
+    join 
+        (select 
+            customer_id, 
+            min(start_date) as soonest_day
+        from foodie_fi.subscriptions
+        group by customer_id)
+    as subquery
+        on S1.customer_id = subquery.customer_id
             and S1.start_date = soonest_day
     join foodie_fi.subscriptions as S2 
         on S1.customer_id = S2.customer_id
             and S1.start_date < S2.start_date
     join foodie_fi.plans as P   
         on S2.plan_id = P.plan_id
-    where plan_name = 'pro annual'),
-CTE3 as
-    (select case
+    where plan_name = 'pro annual')
+select 
+    days_bracket, 
+    count(*) as customer_number
+from 
+    (select 
+        case
             when days_to_annual_upgrade <= 30 then '0-30 days'
             when days_to_annual_upgrade between 31 and 60 then '31-60 days'
             when days_to_annual_upgrade between 61 and 90 then '61-90 days'
@@ -235,10 +274,11 @@ CTE3 as
                 when days_to_annual_upgrade between 301 and 330 then 11
                 else 12
             end as bracket_order
-    from CTE2)
-select days_bracket, count(*) as customer_number
-from CTE3
-group by days_bracket, bracket_order
+    from CTE)
+as subquery
+group by 
+    days_bracket, 
+    bracket_order
 order by bracket_order;
 
 --11. How many customers downgraded from a pro monthly to a basic monthly plan in 2020?
