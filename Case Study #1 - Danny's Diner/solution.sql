@@ -176,8 +176,10 @@ CTE2 as
         customer_id, 
         (price*20) as point
     from CTE1
-    where order_date >= join_date 
-        and datediff(day, join_date, order_date) <= 6
+    where 
+        order_date >= join_date 
+        and 
+        datediff(day, join_date, order_date) <= 6
     
     union all
 
@@ -188,7 +190,10 @@ CTE2 as
             else (price*10)
         end as point
     from CTE1
-    where (order_date < join_date) or order_date >= join_date and datediff(day, join_date, order_date) > 6)
+    where 
+        (order_date < join_date) 
+        or 
+        order_date >= join_date and datediff(day, join_date, order_date) > 6)
 
 select 
     customer_id, 
