@@ -93,7 +93,8 @@ select
     datepart(hour, order_date) as order_hour, 
     count(*) as pizza_order 
 from pizza_runner.customer_orders
-group by datepart(hour, order_date);
+group by datepart(hour, order_date)
+order by datepart(hour, order_date);
 
 --10. What was the volume of orders for each day of the week?
 
