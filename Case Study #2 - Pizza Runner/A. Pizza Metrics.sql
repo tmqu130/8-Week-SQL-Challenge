@@ -7,7 +7,7 @@ from pizza_runner.customer_orders;
 
 --2. How many unique customer orders were made?
 
-select count (distinct order_id) as order_number
+select count (distinct order_id) as order_count
 from pizza_runner.customer_orders;
 
 --3. How many successful orders were delivered by each runner?
@@ -27,7 +27,7 @@ alter column pizza_name varchar(50);
 select 
     PN.pizza_id, 
     pizza_name, 
-    count(*) as order_number
+    count(*) as delivered_count
 from pizza_runner.customer_orders as CO
 left join pizza_runner.pizza_names as PN 
     on CO.pizza_id = PN.pizza_id
@@ -41,7 +41,7 @@ group by PN.pizza_id, pizza_name;
 select 
     customer_id, 
     pizza_name, 
-    count(*) as order_number
+    count(*) as orders_count
 from pizza_runner.customer_orders as CO
 left join pizza_runner.pizza_names as PN 
     on CO.pizza_id = PN.pizza_id
@@ -55,7 +55,7 @@ order by customer_id;
 with CTE AS
     (select 
         RO.order_id, 
-        count(*) as pizza_number
+        count(*) as pizza_count
     from pizza_runner.customer_orders as CO
     join pizza_runner.runner_orders as RO 
         on CO.order_id = RO.order_id
@@ -63,9 +63,9 @@ with CTE AS
     group by RO.order_id)
 select  
     order_id, 
-    pizza_number as max_pizza_number
+    pizza_count as max_pizza_count
 from CTE
-where pizza_number = (select max(pizza_number) from CTE);
+where pizza_count = (select max(pizza_count) from CTE);
 
 --7. For each customer, how many delivered pizzas had at least 1 change and how many had no changes?
 
