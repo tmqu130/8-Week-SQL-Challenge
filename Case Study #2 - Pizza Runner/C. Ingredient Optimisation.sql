@@ -158,7 +158,7 @@ with CTE as
         CO.*,
         row_number () over (order by order_id, pizza_id) as order_line
     from pizza_runner.customer_orders as CO),
-CTE1 as -- Mình dùng CTE và subquery để đưa danh sách ingredient chính của 2 loại pizza vào trong truy vấn chính
+CTE1 as
     (select 
         pizza_id, 
         topping_id, 
@@ -183,9 +183,6 @@ CTE2 as
             when charindex(cast(topping_id as varchar(max)), extras) > 0 then concat ('2x', ingredient)
             when charindex(cast(topping_id as varchar(max)), exclusions) > 0 then null
             else ingredient
-            --Ở đoạn này, ban đầu mình sử dụng topping_id like % extras %/% exclusions % nhưng kết quả trả về không chính xác
-            --Do đó mình quyết định sử dụng charindex để scan các topping_id này trong từng extras/exclusions
-            --Mọi người cũng có thể sử dụng toán tử 'in' nếu có CTE đã break 2 cột extra và exclusion
         end as ingredient,
         CTE.order_date 
     from CTE
@@ -199,7 +196,6 @@ select
     customer_id, 
     pizza_id, 
     concat(pizza_name, ': ', string_agg(ingredient, ', ' ) within group (order by ingredient asc)) as ingredient_list 
-                                                        -- dùng within group để sắp xếp các item được tổng hợp trong hàm string_agg
 from CTE2
 group by 
     order_line, 
