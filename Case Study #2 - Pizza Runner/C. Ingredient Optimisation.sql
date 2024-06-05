@@ -129,10 +129,14 @@ select
     customer_id, 
     CTE.pizza_id, 
     case 
-        when CTE2A.exclusions is null and CTE2B.extras is null then pizza_name
-        when CTE2A.exclusions is not null and CTE2B.extras is null then concat(pizza_name, ' - Exclude ', CTE2A.exclusions)
-        when CTE2A.exclusions is null and CTE2B.extras is not null then concat(pizza_name, ' - Extra ', CTE2B.extras)
-        when CTE2A.exclusions is not null and CTE2B.extras is not null then concat(pizza_name, ' - Exclude ', CTE2A.exclusions, ' - Extra ', CTE2B.extras)
+        when CTE2A.exclusions is null and CTE2B.extras is null 
+            then pizza_name
+        when CTE2A.exclusions is not null and CTE2B.extras is null 
+            then concat(pizza_name, ' - Exclude ', CTE2A.exclusions)
+        when CTE2A.exclusions is null and CTE2B.extras is not null 
+            then concat(pizza_name, ' - Extra ', CTE2B.extras)
+        when CTE2A.exclusions is not null and CTE2B.extras is not null 
+            then concat(pizza_name, ' - Exclude ', CTE2A.exclusions, ' - Extra ', CTE2B.extras)
     end as order_item,
     CTE.exclusions, 
     CTE.extras, 
