@@ -5,11 +5,17 @@
 
 --Sort the query results by each customer_id and in ascending order of start_date:
 
-select customer_id, P.plan_id, plan_name, start_date
+select 
+    customer_id, 
+    P.plan_id, 
+    plan_name, 
+    start_date
 from foodie_fi.plans as P
 join foodie_fi.subscriptions_samples as SS 
     on P.plan_id = SS.plan_id
-order by customer_id, start_date;
+order by 
+    customer_id, 
+    start_date;
 
 --Below is a description based on the sequence of events recorded in the subscriptions table combined with the plans table, highlighting each customer's journey from the trial period to their subscription plan choices and any churn activity:
 
