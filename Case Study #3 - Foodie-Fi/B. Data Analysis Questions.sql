@@ -7,7 +7,9 @@ from foodie_fi.subscriptions;
 
 --2. What is the monthly distribution of trial plan start_date values for our dataset - use the start of the month as the group by value
 
-select format(start_date, 'yyyy-MM-01') as month_start, count(*) as customer_number
+select 
+    format(start_date, 'yyyy-MM-01') as month_start, 
+    count(*) as customer_number
 from foodie_fi.subscriptions as S
 join foodie_fi.plans as P
     on S.plan_id = P.plan_id
@@ -20,7 +22,9 @@ order by format(start_date, 'yyyy-MM-01');
 alter table foodie_fi.plans
 alter column plan_name varchar(15);
 
-select plan_name, count(*) as events_count
+select 
+    plan_name, 
+    count(*) as events_count
 from foodie_fi.subscriptions as S 
 join foodie_fi.plans as P 
     on S.plan_id = P.plan_id
