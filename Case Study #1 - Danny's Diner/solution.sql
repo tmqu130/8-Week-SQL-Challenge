@@ -35,23 +35,17 @@ where order_sequence = 1;
 
 --4. What is the most purchased item on the menu and how many times was it purchased by all customers?
 
-with CTE as
-    (select 
-        S.product_id, 
-        product_name, 
-        count(*) as purchase_times
-    from sales as S
-    join menu as M
-        on S.product_id = M.product_id
-    group by 
-        S.product_id, 
-        product_name)
-select 
-    product_id, 
-    product_name, 
-    purchase_times 
-from CTE
-where purchase_times = (select max(purchase_times) from CTE);
+select top 1
+    M.product_id,
+    product_name,
+    count(*) as purchase_times
+from menu as M 
+join sales as S
+    on M.product_id = S.product_id
+group by 
+    M.product_id,
+    product_name
+order by count(*) desc;
 
 --5. Which item was the most popular for each customer?
 
