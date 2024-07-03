@@ -168,7 +168,7 @@ daily_balances as (
     sum(case 
       when txn_type = 'deposit' then txn_amount 
       else -txn_amount 
-    end) over (partition by customer_id order by txn_date rows 29 preceding) as daily_balance
+    end) over (partition by customer_id order by txn_date rows 30 preceding) as daily_balance
   from customer_transactions
 )
 select 
@@ -243,3 +243,85 @@ begin
     group by i.customer_id;
 end;
 GO
+
+--Using all of the data available - how much data would have been required for each option on a monthly basis?
+
+--Option 1:
+
+with months as (
+  select distinct 
+    customer_id, 
+    eomonth('2020-01-01') as month_end
+  from customer_transactions
+
+  union all
+
+  select 
+    customer_id, 
+    eomonth(dateadd(month, 1, month_end)) as month_end
+  from months
+  where dateadd(month, 1, month_end) <= eomonth('2020-04-28')
+),
+monthly_balances as (
+  select 
+    customer_id, 
+    eomonth(txn_date) as month_end,
+    sum(case 
+      when txn_type = 'deposit' then txn_amount 
+      else - txn_amount 
+      end) as total_amount
+  from customer_transactions
+  group by 
+    customer_id, 
+    eomonth(txn_date)
+),
+running_balances as (
+  select 
+    a.customer_id, 
+    a.month_end,
+    sum(total_amount) over (partition by a.customer_id order by a.month_end) as closing_balance
+  from months as a
+  left join monthly_balances as b
+    on a.customer_id = b.customer_id 
+    and a.month_end = b.month_end
+)
+select 
+  format(month_end, 'yyyy-MM') as month,
+  sum(case 
+    when closing_balance > 0 then closing_balance 
+    else 0 
+    end) as data_required
+from running_balances
+group by month_end;
+
+--Option 2:
+
+with daily_balances as (
+  select 
+    customer_id,
+    txn_date,
+    sum(case 
+      when txn_type = 'deposit' then txn_amount 
+      else -txn_amount 
+    end) over (partition by customer_id order by txn_date rows 30 preceding) as daily_balance
+  from customer_transactions
+),
+monthly_balances as (
+  select 
+    customer_id,
+    eomonth(txn_date) as month_end,
+    avg(case 
+      when daily_balance > 0 then daily_balance 
+      else 0 
+    end) as avg_monthly_balance
+  from daily_balances
+  group by 
+    customer_id, 
+    eomonth(txn_date)
+)
+select 
+  format(month_end, 'yyyy-MM') as month,
+  sum(avg_monthly_balance) as data_required
+from monthly_balances
+group by month_end
+order by month_end;
